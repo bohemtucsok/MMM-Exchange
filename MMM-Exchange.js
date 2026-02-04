@@ -1,4 +1,4 @@
-Module.register("MMM-EWS-Calendar", {
+Module.register("MMM-Exchange", {
 
   defaults: {
     username: "",
@@ -19,7 +19,7 @@ Module.register("MMM-EWS-Calendar", {
   errorMessage: null,
 
   start: function () {
-    Log.info("[MMM-EWS-Calendar] Module started.");
+    Log.info("[MMM-Exchange] Module started.");
     this.events = [];
     this.loading = true;
     this.errorMessage = null;
@@ -27,7 +27,7 @@ Module.register("MMM-EWS-Calendar", {
   },
 
   getStyles: function () {
-    return ["MMM-EWS-Calendar.css"];
+    return ["MMM-Exchange.css"];
   },
 
   getHeader: function () {
@@ -36,7 +36,7 @@ Module.register("MMM-EWS-Calendar", {
 
   getDom: function () {
     var wrapper = document.createElement("div");
-    wrapper.className = "mmm-ews-calendar";
+    wrapper.className = "mmm-exchange";
 
     // Loading state
     if (this.loading) {

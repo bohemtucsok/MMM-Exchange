@@ -8,7 +8,7 @@ module.exports = NodeHelper.create({
   config: null,
 
   start: function () {
-    console.log("[MMM-EWS-Calendar] node_helper started.");
+    console.log("[MMM-Exchange] node_helper started.");
   },
 
   socketNotificationReceived: function (notification, payload) {
@@ -83,16 +83,16 @@ module.exports = NodeHelper.create({
       }
     };
 
-    console.log("[MMM-EWS-Calendar] Fetching calendar events...");
+    console.log("[MMM-Exchange] Fetching calendar events...");
 
     self.ewsClient.run(ewsFunction, ewsArgs)
       .then(function (result) {
         var events = self.parseEvents(result);
-        console.log("[MMM-EWS-Calendar] Fetched " + events.length + " events.");
+        console.log("[MMM-Exchange] Fetched " + events.length + " events.");
         self.sendSocketNotification("EVENTS_DATA", events);
       })
       .catch(function (err) {
-        console.error("[MMM-EWS-Calendar] EWS error:", err.message || err);
+        console.error("[MMM-Exchange] EWS error:", err.message || err);
         self.sendSocketNotification("EVENTS_ERROR", {
           message: err.message || "Unknown EWS error"
         });
@@ -110,7 +110,7 @@ module.exports = NodeHelper.create({
         responseMessage.attributes.ResponseClass !== "Success"
       ) {
         console.error(
-          "[MMM-EWS-Calendar] EWS response error:",
+          "[MMM-Exchange] EWS response error:",
           responseMessage.ResponseCode
         );
         return events;
@@ -119,7 +119,7 @@ module.exports = NodeHelper.create({
       var rootFolder = responseMessage.RootFolder;
 
       if (!rootFolder || !rootFolder.Items || !rootFolder.Items.CalendarItem) {
-        console.log("[MMM-EWS-Calendar] No calendar items found.");
+        console.log("[MMM-Exchange] No calendar items found.");
         return events;
       }
 
@@ -155,7 +155,7 @@ module.exports = NodeHelper.create({
 
     } catch (parseErr) {
       console.error(
-        "[MMM-EWS-Calendar] Error parsing EWS response:",
+        "[MMM-Exchange] Error parsing EWS response:",
         parseErr.message
       );
     }

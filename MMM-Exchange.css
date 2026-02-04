@@ -1,22 +1,22 @@
-.mmm-ews-calendar {
+.mmm-exchange {
   line-height: 1.6;
   padding: 0;
 }
 
-.mmm-ews-calendar table {
+.mmm-exchange table {
   border-collapse: collapse;
   width: 100%;
 }
 
-.mmm-ews-calendar .event-row {
+.mmm-exchange .event-row {
   border-bottom: 1px solid rgba(255, 255, 255, 0.1);
 }
 
-.mmm-ews-calendar .event-row:last-child {
+.mmm-exchange .event-row:last-child {
   border-bottom: none;
 }
 
-.mmm-ews-calendar .event-time {
+.mmm-exchange .event-time {
   padding: 8px 15px 8px 0;
   white-space: nowrap;
   vertical-align: top;
@@ -24,27 +24,27 @@
   color: #aaa;
 }
 
-.mmm-ews-calendar .event-detail {
+.mmm-exchange .event-detail {
   padding: 8px 0;
   vertical-align: top;
 }
 
-.mmm-ews-calendar .event-subject {
+.mmm-exchange .event-subject {
   display: block;
   font-size: 1em;
 }
 
-.mmm-ews-calendar .event-location {
+.mmm-exchange .event-location {
   display: block;
   margin-top: 2px;
   font-size: 0.8em;
   color: #888;
 }
 
-.mmm-ews-calendar .current-event .event-subject {
+.mmm-exchange .current-event .event-subject {
   color: #fff;
 }
 
-.mmm-ews-calendar .current-event .event-time {
+.mmm-exchange .current-event .event-time {
   color: #ddd;
 }
