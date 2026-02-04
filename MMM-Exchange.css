@@ -32,6 +32,11 @@
 .mmm-exchange .event-subject {
   display: block;
   font-size: 1em;
+  white-space: nowrap;
+  overflow: hidden;
+  max-width: 300px;
+  mask-image: linear-gradient(to right, #000 80%, transparent 100%);
+  -webkit-mask-image: linear-gradient(to right, #000 80%, transparent 100%);
 }
 
 .mmm-exchange .event-location {
@@ -39,6 +44,11 @@
   margin-top: 2px;
   font-size: 0.8em;
   color: #888;
+  white-space: nowrap;
+  overflow: hidden;
+  max-width: 300px;
+  mask-image: linear-gradient(to right, #000 80%, transparent 100%);
+  -webkit-mask-image: linear-gradient(to right, #000 80%, transparent 100%);
 }
 
 .mmm-exchange .current-event .event-subject {
