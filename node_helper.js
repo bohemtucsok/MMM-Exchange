@@ -1,6 +1,5 @@
 var NodeHelper = require("node_helper");
-var https = require("https");
-var http = require("http");
+var httpntlm = require("httpntlm");
 var DOMParser = require("@xmldom/xmldom").DOMParser;
 
 module.exports = NodeHelper.create({
@@ -68,102 +67,73 @@ module.exports = NodeHelper.create({
 
     console.log("[MMM-Exchange] Fetching calendar events from " + ewsUrl);
 
-    var authString = Buffer.from(this.config.username + ":" + this.config.password).toString("base64");
+    // Parse username - support both "user@domain.com" and "DOMAIN\\user" formats
+    var username = this.config.username;
+    var domain = this.config.domain || "";
 
-    this.httpPost(ewsUrl, soapXml, authString, 0, function (err, body) {
+    // If username is in email format (user@domain.com), extract parts
+    if (!domain && username.indexOf("@") > -1) {
+      var parts = username.split("@");
+      username = parts[0];
+      domain = parts[1].split(".")[0].toUpperCase();
+    }
+
+    // If username is in DOMAIN\user format, extract parts
+    if (!domain && username.indexOf("\\") > -1) {
+      var parts = username.split("\\");
+      domain = parts[0];
+      username = parts[1];
+    }
+
+    var ntlmOptions = {
+      url: ewsUrl,
+      username: username,
+      password: this.config.password,
+      domain: domain,
+      body: soapXml,
+      headers: {
+        "Content-Type": "text/xml; charset=utf-8"
+      }
+    };
+
+    if (self.config.allowInsecureSSL) {
+      process.env.NODE_TLS_REJECT_UNAUTHORIZED = "0";
+    }
+
+    httpntlm.post(ntlmOptions, function (err, res) {
+      // Reset TLS setting
+      if (self.config.allowInsecureSSL) {
+        process.env.NODE_TLS_REJECT_UNAUTHORIZED = "1";
+      }
+
       if (err) {
-        console.error("[MMM-Exchange] HTTP error:", err);
+        console.error("[MMM-Exchange] NTLM request error:", err);
         self.sendSocketNotification("EVENTS_ERROR", {
           message: String(err)
         });
         return;
       }
 
+      if (res.statusCode !== 200) {
+        console.error("[MMM-Exchange] HTTP " + res.statusCode + " response:", String(res.body).substring(0, 300));
+        self.sendSocketNotification("EVENTS_ERROR", {
+          message: "HTTP " + res.statusCode + " from Exchange server"
+        });
+        return;
+      }
+
       try {
-        var events = self.parseXmlResponse(body);
+        var events = self.parseXmlResponse(res.body);
         console.log("[MMM-Exchange] Fetched " + events.length + " events.");
         self.sendSocketNotification("EVENTS_DATA", events);
       } catch (parseErr) {
         console.error("[MMM-Exchange] Parse error:", parseErr.message);
-        console.error("[MMM-Exchange] Response body (first 500 chars):", String(body).substring(0, 500));
+        console.error("[MMM-Exchange] Response body (first 500 chars):", String(res.body).substring(0, 500));
         self.sendSocketNotification("EVENTS_ERROR", {
           message: "Failed to parse EWS response: " + parseErr.message
         });
       }
     });
-  },
-
-  httpPost: function (url, body, authBase64, redirectCount, callback) {
-    var self = this;
-
-    if (redirectCount > 5) {
-      callback("Too many redirects");
-      return;
-    }
-
-    var parsedUrl = new URL(url);
-    var isHttps = parsedUrl.protocol === "https:";
-    var transport = isHttps ? https : http;
-
-    var options = {
-      hostname: parsedUrl.hostname,
-      port: parsedUrl.port || (isHttps ? 443 : 80),
-      path: parsedUrl.pathname + parsedUrl.search,
-      method: "POST",
-      headers: {
-        "Content-Type": "text/xml; charset=utf-8",
-        "Content-Length": Buffer.byteLength(body, "utf8"),
-        "Authorization": "Basic " + authBase64
-      },
-      rejectAuthorized: !(self.config.allowInsecureSSL)
-    };
-
-    if (self.config.allowInsecureSSL) {
-      options.rejectUnauthorized = false;
-    }
-
-    var req = transport.request(options, function (res) {
-      // Follow redirects (301, 302, 307, 308)
-      if ([301, 302, 307, 308].indexOf(res.statusCode) > -1 && res.headers.location) {
-        var redirectUrl = res.headers.location;
-        // Handle relative redirects
-        if (redirectUrl.startsWith("/")) {
-          redirectUrl = parsedUrl.protocol + "//" + parsedUrl.host + redirectUrl;
-        }
-        console.log("[MMM-Exchange] Following redirect to: " + redirectUrl);
-
-        // For 301/302, resend as POST with body
-        self.httpPost(redirectUrl, body, authBase64, redirectCount + 1, callback);
-        // Consume the response to free up the socket
-        res.resume();
-        return;
-      }
-
-      if (res.statusCode !== 200) {
-        var errBody = "";
-        res.on("data", function (chunk) { errBody += chunk; });
-        res.on("end", function () {
-          console.error("[MMM-Exchange] HTTP " + res.statusCode + " response:", errBody.substring(0, 300));
-          callback("HTTP " + res.statusCode + " from Exchange server");
-        });
-        return;
-      }
-
-      var responseBody = "";
-      res.on("data", function (chunk) {
-        responseBody += chunk;
-      });
-      res.on("end", function () {
-        callback(null, responseBody);
-      });
-    });
-
-    req.on("error", function (err) {
-      callback(err.message || err);
-    });
-
-    req.write(body);
-    req.end();
   },
 
   parseXmlResponse: function (xmlString) {
