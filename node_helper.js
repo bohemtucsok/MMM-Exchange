@@ -1,7 +1,6 @@
 var NodeHelper = require("node_helper");
 var https = require("https");
 var http = require("http");
-var httpntlm = require("httpntlm");
 var DOMParser = require("@xmldom/xmldom").DOMParser;
 
 module.exports = NodeHelper.create({
@@ -22,10 +21,6 @@ module.exports = NodeHelper.create({
           message: "Missing required config: username, password, or host"
         });
         return;
-      }
-
-      if (this.config.allowInsecureSSL) {
-        process.env.NODE_TLS_REJECT_UNAUTHORIZED = "0";
       }
 
       this.fetchEvents();
@@ -73,55 +68,102 @@ module.exports = NodeHelper.create({
 
     console.log("[MMM-Exchange] Fetching calendar events from " + ewsUrl);
 
-    // Parse username into domain\\user if needed
-    var username = this.config.username;
-    var domain = "";
-    if (username.indexOf("\\") > -1) {
-      var parts = username.split("\\");
-      domain = parts[0];
-      username = parts[1];
-    } else if (username.indexOf("@") > -1) {
-      // user@domain format - httpntlm handles this directly
-      domain = "";
-    }
+    var authString = Buffer.from(this.config.username + ":" + this.config.password).toString("base64");
 
-    httpntlm.post({
-      url: ewsUrl,
-      username: username,
-      password: this.config.password,
-      domain: domain,
-      body: soapXml,
-      headers: {
-        "Content-Type": "text/xml; charset=utf-8"
-      }
-    }, function (err, res) {
+    this.httpPost(ewsUrl, soapXml, authString, 0, function (err, body) {
       if (err) {
-        console.error("[MMM-Exchange] HTTP error:", err.message || err);
+        console.error("[MMM-Exchange] HTTP error:", err);
         self.sendSocketNotification("EVENTS_ERROR", {
-          message: err.message || "HTTP request failed"
-        });
-        return;
-      }
-
-      if (res.statusCode !== 200) {
-        console.error("[MMM-Exchange] HTTP status:", res.statusCode);
-        self.sendSocketNotification("EVENTS_ERROR", {
-          message: "HTTP " + res.statusCode + " from Exchange server"
+          message: String(err)
         });
         return;
       }
 
       try {
-        var events = self.parseXmlResponse(res.body);
+        var events = self.parseXmlResponse(body);
         console.log("[MMM-Exchange] Fetched " + events.length + " events.");
         self.sendSocketNotification("EVENTS_DATA", events);
       } catch (parseErr) {
         console.error("[MMM-Exchange] Parse error:", parseErr.message);
+        console.error("[MMM-Exchange] Response body (first 500 chars):", String(body).substring(0, 500));
         self.sendSocketNotification("EVENTS_ERROR", {
           message: "Failed to parse EWS response: " + parseErr.message
         });
       }
     });
+  },
+
+  httpPost: function (url, body, authBase64, redirectCount, callback) {
+    var self = this;
+
+    if (redirectCount > 5) {
+      callback("Too many redirects");
+      return;
+    }
+
+    var parsedUrl = new URL(url);
+    var isHttps = parsedUrl.protocol === "https:";
+    var transport = isHttps ? https : http;
+
+    var options = {
+      hostname: parsedUrl.hostname,
+      port: parsedUrl.port || (isHttps ? 443 : 80),
+      path: parsedUrl.pathname + parsedUrl.search,
+      method: "POST",
+      headers: {
+        "Content-Type": "text/xml; charset=utf-8",
+        "Content-Length": Buffer.byteLength(body, "utf8"),
+        "Authorization": "Basic " + authBase64
+      },
+      rejectAuthorized: !(self.config.allowInsecureSSL)
+    };
+
+    if (self.config.allowInsecureSSL) {
+      options.rejectUnauthorized = false;
+    }
+
+    var req = transport.request(options, function (res) {
+      // Follow redirects (301, 302, 307, 308)
+      if ([301, 302, 307, 308].indexOf(res.statusCode) > -1 && res.headers.location) {
+        var redirectUrl = res.headers.location;
+        // Handle relative redirects
+        if (redirectUrl.startsWith("/")) {
+          redirectUrl = parsedUrl.protocol + "//" + parsedUrl.host + redirectUrl;
+        }
+        console.log("[MMM-Exchange] Following redirect to: " + redirectUrl);
+
+        // For 301/302, resend as POST with body
+        self.httpPost(redirectUrl, body, authBase64, redirectCount + 1, callback);
+        // Consume the response to free up the socket
+        res.resume();
+        return;
+      }
+
+      if (res.statusCode !== 200) {
+        var errBody = "";
+        res.on("data", function (chunk) { errBody += chunk; });
+        res.on("end", function () {
+          console.error("[MMM-Exchange] HTTP " + res.statusCode + " response:", errBody.substring(0, 300));
+          callback("HTTP " + res.statusCode + " from Exchange server");
+        });
+        return;
+      }
+
+      var responseBody = "";
+      res.on("data", function (chunk) {
+        responseBody += chunk;
+      });
+      res.on("end", function () {
+        callback(null, responseBody);
+      });
+    });
+
+    req.on("error", function (err) {
+      callback(err.message || err);
+    });
+
+    req.write(body);
+    req.end();
   },
 
   parseXmlResponse: function (xmlString) {
