@@ -1,0 +1,50 @@
+.mmm-ews-calendar {
+  line-height: 1.6;
+  padding: 0;
+}
+
+.mmm-ews-calendar table {
+  border-collapse: collapse;
+  width: 100%;
+}
+
+.mmm-ews-calendar .event-row {
+  border-bottom: 1px solid rgba(255, 255, 255, 0.1);
+}
+
+.mmm-ews-calendar .event-row:last-child {
+  border-bottom: none;
+}
+
+.mmm-ews-calendar .event-time {
+  padding: 8px 15px 8px 0;
+  white-space: nowrap;
+  vertical-align: top;
+  font-size: 0.85em;
+  color: #aaa;
+}
+
+.mmm-ews-calendar .event-detail {
+  padding: 8px 0;
+  vertical-align: top;
+}
+
+.mmm-ews-calendar .event-subject {
+  display: block;
+  font-size: 1em;
+}
+
+.mmm-ews-calendar .event-location {
+  display: block;
+  margin-top: 2px;
+  font-size: 0.8em;
+  color: #888;
+}
+
+.mmm-ews-calendar .current-event .event-subject {
+  color: #fff;
+}
+
+.mmm-ews-calendar .current-event .event-time {
+  color: #ddd;
+}

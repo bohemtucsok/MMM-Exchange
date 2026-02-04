@@ -1,0 +1,17 @@
+{
+  "name": "mmm-ews-calendar",
+  "version": "1.0.0",
+  "description": "MagicMirror² module to display calendar events from an on-premise Exchange server via EWS",
+  "main": "node_helper.js",
+  "dependencies": {
+    "node-ews": "^3.5.0"
+  },
+  "keywords": [
+    "magicmirror",
+    "module",
+    "exchange",
+    "ews",
+    "calendar"
+  ],
+  "license": "MIT"
+}
