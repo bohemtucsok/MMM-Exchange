@@ -4,7 +4,8 @@
   "description": "MagicMirror² module to display calendar events from an on-premise Exchange server via EWS",
   "main": "node_helper.js",
   "dependencies": {
-    "node-ews": "^3.5.0"
+    "node-ews": "^3.5.0",
+    "ntlm-client": "^0.1.0"
   },
   "keywords": [
     "magicmirror",
