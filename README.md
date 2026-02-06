@@ -1,93 +1,93 @@
 # MMM-Exchange
 
-MagicMirror² modul on-premise Microsoft Exchange naptár megjelenítéséhez EWS (Exchange Web Services) SOAP API-n keresztül, NTLM autentikációval.
+MagicMirror² module for displaying on-premise Microsoft Exchange calendar events via EWS (Exchange Web Services) SOAP API with NTLM authentication.
 
-## Funkciók
+## Features
 
-- Exchange naptár események lekérése EWS SOAP API-val
-- NTLM autentikáció (Negotiate/NTLM)
-- Automatikus username/domain parsing (`user@domain.com` vagy `DOMAIN\user` formátum)
-- Konfiguálható frissítési intervallum, megjelenített események száma, időtartam
-- Aktuális esemény kiemelése
-- Hosszú szövegek fade-out effekttel való levágása
-- Helyszín megjelenítése (opcionális)
+- Fetches calendar events from Exchange using EWS SOAP API
+- NTLM authentication (Negotiate/NTLM)
+- Automatic username/domain parsing (`user@domain.com` or `DOMAIN\user` format)
+- Configurable refresh interval, number of displayed events, and time range
+- Current event highlighting
+- Long text fade-out effect with CSS gradient
+- Optional location display
 
-## Telepítés
+## Installation
 
 ```bash
 cd ~/MagicMirror/modules
-git clone https://gitlab.onevps.hu/egyeb_fejlesztesek/magicmirror_exchange.git MMM-Exchange
+git clone https://github.com/bohemtucsok/MMM-Exchange.git
 cd MMM-Exchange
 npm install
 ```
 
-## Konfiguráció
+## Configuration
 
-A MagicMirror `config/config.js` fájljában add hozzá a modulok listájához:
+Add the following to the modules array in your MagicMirror `config/config.js`:
 
 ```javascript
 {
     module: "MMM-Exchange",
     position: "top_left",
     config: {
-        username: "felhasznalo@domain.com",
-        password: "jelszo",
-        host: "https://exchange-szerver-neve",
+        username: "user@domain.com",
+        password: "password",
+        host: "https://your-exchange-server",
         allowInsecureSSL: true
     }
 }
 ```
 
-### Konfigurációs opciók
+### Configuration Options
 
-| Opció | Típus | Alapértelmezett | Leírás |
-|-------|-------|-----------------|--------|
-| `username` | String | `""` | Exchange felhasználónév. Támogatott formátumok: `user@domain.com` vagy `DOMAIN\user` |
-| `password` | String | `""` | Exchange jelszó |
-| `host` | String | `""` | Exchange szerver URL (pl. `https://exchange.cegnev.hu`) |
-| `domain` | String | `""` | AD domain név (opcionális, ha a username-ből nem derül ki) |
-| `updateInterval` | Number | `300000` | Frissítési intervallum milliszekundumban (alapértelmezett: 5 perc) |
-| `maxEvents` | Number | `5` | Megjelenített események maximális száma |
-| `daysToFetch` | Number | `14` | Előre lekérdezett napok száma |
-| `allowInsecureSSL` | Boolean | `false` | Self-signed SSL tanúsítvány engedélyezése |
-| `showLocation` | Boolean | `true` | Helyszín megjelenítése az esemény alatt |
-| `showEnd` | Boolean | `true` | Befejezési időpont megjelenítése |
-| `header` | String | `"Exchange Calendar"` | Modul fejléc szövege |
-| `animationSpeed` | Number | `1000` | DOM frissítés animáció sebessége (ms) |
+| Option | Type | Default | Description |
+|--------|------|---------|-------------|
+| `username` | String | `""` | Exchange username. Supported formats: `user@domain.com` or `DOMAIN\user` |
+| `password` | String | `""` | Exchange password |
+| `host` | String | `""` | Exchange server URL (e.g. `https://exchange.company.com`) |
+| `domain` | String | `""` | AD domain name (optional, if not derivable from username) |
+| `updateInterval` | Number | `300000` | Refresh interval in milliseconds (default: 5 minutes) |
+| `maxEvents` | Number | `5` | Maximum number of displayed events |
+| `daysToFetch` | Number | `14` | Number of days to fetch ahead |
+| `allowInsecureSSL` | Boolean | `false` | Allow self-signed SSL certificates |
+| `showLocation` | Boolean | `true` | Show event location |
+| `showEnd` | Boolean | `true` | Show event end time |
+| `header` | String | `"Exchange Calendar"` | Module header text |
+| `animationSpeed` | Number | `1000` | DOM update animation speed (ms) |
 
-### Username formátumok
+### Username Formats
 
-A modul automatikusan felismeri és parse-olja a felhasználónevet:
+The module automatically detects and parses the username:
 
-- **Email formátum**: `gabor@cegnev.com` → username: `gabor`, domain: `CEGNEV`
-- **Domain\user formátum**: `CEGNEV\gabor` → username: `gabor`, domain: `CEGNEV`
-- **Explicit domain**: ha a `domain` konfigurációs opciót is megadod, az felülírja az automatikus felismerést
+- **Email format**: `john@company.com` → username: `john`, domain: `COMPANY`
+- **Domain\user format**: `COMPANY\john` → username: `john`, domain: `COMPANY`
+- **Explicit domain**: if you set the `domain` config option, it overrides automatic detection
 
-## Követelmények
+## Requirements
 
-- MagicMirror² v2.20.0 vagy újabb
-- On-premise Microsoft Exchange szerver EWS támogatással
-- Közvetlen hálózati elérés az Exchange szerverhez (proxy nem ajánlott, mert az NTLM handshake-et megzavarhatja)
+- MagicMirror² v2.20.0 or later
+- On-premise Microsoft Exchange server with EWS support
+- Direct network access to the Exchange server (proxy not recommended as it may break the NTLM 3-step handshake)
 
-## Hibaelhárítás
+## Troubleshooting
 
 ### HTTP 401 Unauthorized
-- Ellenőrizd a felhasználónevet és jelszót
-- Győződj meg róla, hogy az Exchange szerver támogatja az NTLM autentikációt
-- Ha proxy-n keresztül csatlakozol, az megzavarhatja az NTLM 3-lépéses handshake-et. Használj közvetlen kapcsolatot.
+- Check your username and password
+- Make sure the Exchange server supports NTLM authentication
+- If connecting through a proxy, it may interfere with the NTLM handshake. Use a direct connection instead.
 
-### SOAP Fault / Parse error
-- Ellenőrizd a `host` URL-t (a `/EWS/Exchange.asmx` végződést a modul automatikusan hozzáadja)
-- Nézd meg a MagicMirror logot: `pm2 logs magicmirror`
+### SOAP Fault / Parse Error
+- Verify the `host` URL (the module automatically appends `/EWS/Exchange.asmx`)
+- Check the MagicMirror log: `pm2 logs magicmirror`
 
-### SSL hiba
-- Self-signed tanúsítványnál állítsd be: `allowInsecureSSL: true`
+### SSL Error
+- For self-signed certificates, set: `allowInsecureSSL: true`
 
-## Függőségek
+## Dependencies
 
 - [@xmldom/xmldom](https://www.npmjs.com/package/@xmldom/xmldom) - XML parsing
-- [httpntlm](https://www.npmjs.com/package/httpntlm) - NTLM autentikáció
+- [httpntlm](https://www.npmjs.com/package/httpntlm) - NTLM authentication
 
-## Licenc
+## License
 
 MIT
