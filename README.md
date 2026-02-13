@@ -1,18 +1,53 @@
+<p align="center">
+  <img src="https://img.shields.io/badge/MagicMirror%C2%B2-module-blueviolet" alt="MagicMirror² Module" />
+  <img src="https://img.shields.io/badge/platform-Raspberry%20Pi-red" alt="Raspberry Pi" />
+  <img src="https://img.shields.io/badge/exchange-EWS%20%2B%20NTLM-blue" alt="Exchange EWS" />
+  <img src="https://img.shields.io/badge/license-MIT-green" alt="MIT License" />
+</p>
+
 # MMM-Exchange
 
-MagicMirror² module for displaying on-premise Microsoft Exchange calendar events via EWS (Exchange Web Services) SOAP API with NTLM authentication.
+<p align="center">
+  <strong>Display your on-premise Microsoft Exchange calendar on MagicMirror² via EWS SOAP API with NTLM authentication.</strong>
+</p>
+
+<p align="center">
+  <a href="#features">Features</a> •
+  <a href="#installation">Installation</a> •
+  <a href="#configuration">Configuration</a> •
+  <a href="#troubleshooting">Troubleshooting</a> •
+  <a href="#license">License</a>
+</p>
+
+<p align="center">
+  <strong><a href="README.hu.md">Magyar nyelvű leírás / Hungarian documentation</a></strong>
+</p>
+
+---
+
+## Why this module?
+
+Most calendar modules rely on CalDAV, Google Calendar, or iCal URLs. If your organization runs an **on-premise Microsoft Exchange server** that only supports **NTLM authentication**, none of those work.
+
+**MMM-Exchange** talks directly to Exchange via EWS SOAP API with full NTLM handshake support. No cloud, no OAuth, no iCal export — just point it at your Exchange server and it shows your upcoming events.
+
+---
 
 ## Features
 
-- Fetches calendar events from Exchange using EWS SOAP API
-- NTLM authentication (Negotiate/NTLM)
-- Automatic username/domain parsing (`user@domain.com` or `DOMAIN\user` format)
-- Configurable refresh interval, number of displayed events, and time range
-- Current event highlighting
-- Long text fade-out effect with CSS gradient
-- Optional location display
+- **EWS SOAP API** — direct Exchange Web Services integration
+- **NTLM authentication** — full 3-step Negotiate/NTLM handshake
+- **Smart username parsing** — auto-detects `user@domain.com` or `DOMAIN\user` format
+- **Current event highlighting** — ongoing events are visually emphasized
+- **Fade-out effect** — long event titles gracefully fade instead of hard clipping
+- **Configurable** refresh interval, event count, date range, location display
+- **Minimal dependencies** — only 2 packages (xmldom + httpntlm)
+
+---
 
 ## Installation
+
+### 1. Clone the module
 
 ```bash
 cd ~/MagicMirror/modules
@@ -21,9 +56,9 @@ cd MMM-Exchange
 npm install
 ```
 
-## Configuration
+### 2. Configure MagicMirror
 
-Add the following to the modules array in your MagicMirror `config/config.js`:
+Add to your `~/MagicMirror/config/config.js`:
 
 ```javascript
 {
@@ -38,56 +73,87 @@ Add the following to the modules array in your MagicMirror `config/config.js`:
 }
 ```
 
-### Configuration Options
+### 3. Restart MagicMirror
 
-| Option | Type | Default | Description |
-|--------|------|---------|-------------|
-| `username` | String | `""` | Exchange username. Supported formats: `user@domain.com` or `DOMAIN\user` |
-| `password` | String | `""` | Exchange password |
-| `host` | String | `""` | Exchange server URL (e.g. `https://exchange.company.com`) |
-| `domain` | String | `""` | AD domain name (optional, if not derivable from username) |
-| `updateInterval` | Number | `300000` | Refresh interval in milliseconds (default: 5 minutes) |
-| `maxEvents` | Number | `5` | Maximum number of displayed events |
-| `daysToFetch` | Number | `14` | Number of days to fetch ahead |
-| `allowInsecureSSL` | Boolean | `false` | Allow self-signed SSL certificates |
-| `showLocation` | Boolean | `true` | Show event location |
-| `showEnd` | Boolean | `true` | Show event end time |
-| `header` | String | `"Exchange Calendar"` | Module header text |
-| `animationSpeed` | Number | `1000` | DOM update animation speed (ms) |
+```bash
+pm2 restart magicmirror
+```
 
-### Username Formats
+---
 
-The module automatically detects and parses the username:
+## Configuration
 
-- **Email format**: `john@company.com` → username: `john`, domain: `COMPANY`
-- **Domain\user format**: `COMPANY\john` → username: `john`, domain: `COMPANY`
-- **Explicit domain**: if you set the `domain` config option, it overrides automatic detection
+| Option | Default | Description |
+|--------|---------|-------------|
+| `username` | `""` | Exchange username (`user@domain.com` or `DOMAIN\user`) |
+| `password` | `""` | Exchange password |
+| `host` | `""` | Exchange server URL (e.g. `https://exchange.company.com`) |
+| `domain` | `""` | AD domain name (optional, auto-detected from username) |
+| `updateInterval` | `300000` (5min) | Calendar refresh interval (ms) |
+| `maxEvents` | `5` | Maximum number of displayed events |
+| `daysToFetch` | `14` | Number of days to fetch ahead |
+| `allowInsecureSSL` | `false` | Allow self-signed SSL certificates |
+| `showLocation` | `true` | Show event location below the title |
+| `showEnd` | `true` | Show event end time |
+| `header` | `"Exchange Calendar"` | Module header text |
+| `animationSpeed` | `1000` (1s) | DOM update animation speed (ms) |
+
+---
+
+## Username Formats
+
+The module automatically detects and parses your username:
+
+| Input | Parsed Username | Parsed Domain |
+|-------|----------------|---------------|
+| `john@company.com` | `john` | `COMPANY` |
+| `COMPANY\john` | `john` | `COMPANY` |
+
+If you set the `domain` config option explicitly, it overrides automatic detection.
+
+---
+
+## How It Works
+
+| Layer | Technology |
+|-------|-----------|
+| Frontend | MagicMirror² Module API (DOM, table rendering) |
+| Backend | Node.js node_helper (socket notifications) |
+| Auth | NTLM 3-step handshake via httpntlm |
+| API | EWS SOAP XML (FindItem + CalendarView) |
+| XML Parsing | @xmldom/xmldom |
+
+---
+
+## Troubleshooting
+
+| Problem | Solution |
+|---------|----------|
+| HTTP 401 Unauthorized | Check username/password. Verify the Exchange server supports NTLM. |
+| SOAP Fault / Parse Error | Check the `host` URL — the module appends `/EWS/Exchange.asmx` automatically. |
+| SSL Error | For self-signed certificates, set `allowInsecureSSL: true` |
+| No events showing | Check the date range (`daysToFetch`) and `pm2 logs magicmirror` |
+| Behind a proxy | NTLM handshake may break through reverse proxies. Use direct network access. |
+
+---
 
 ## Requirements
 
 - MagicMirror² v2.20.0 or later
-- On-premise Microsoft Exchange server with EWS support
-- Direct network access to the Exchange server (proxy not recommended as it may break the NTLM 3-step handshake)
+- On-premise Microsoft Exchange server with EWS enabled
+- Direct network access to the Exchange server (proxy not recommended)
 
-## Troubleshooting
-
-### HTTP 401 Unauthorized
-- Check your username and password
-- Make sure the Exchange server supports NTLM authentication
-- If connecting through a proxy, it may interfere with the NTLM handshake. Use a direct connection instead.
-
-### SOAP Fault / Parse Error
-- Verify the `host` URL (the module automatically appends `/EWS/Exchange.asmx`)
-- Check the MagicMirror log: `pm2 logs magicmirror`
-
-### SSL Error
-- For self-signed certificates, set: `allowInsecureSSL: true`
+---
 
 ## Dependencies
 
-- [@xmldom/xmldom](https://www.npmjs.com/package/@xmldom/xmldom) - XML parsing
-- [httpntlm](https://www.npmjs.com/package/httpntlm) - NTLM authentication
+| Package | Purpose |
+|---------|---------|
+| [@xmldom/xmldom](https://www.npmjs.com/package/@xmldom/xmldom) | XML parsing |
+| [httpntlm](https://www.npmjs.com/package/httpntlm) | NTLM authentication |
+
+---
 
 ## License
 
-MIT
+[MIT](LICENSE) — use it, fork it, self-host it. Contributions welcome.
