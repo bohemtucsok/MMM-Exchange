@@ -11,19 +11,30 @@ Module.register("MMM-Exchange", {
     animationSpeed: 1000,
     showLocation: true,
     showEnd: true,
+    showTasks: false,
+    maxTasks: 10,
     header: "Exchange Calendar"
   },
 
   events: [],
+  tasks: [],
   loading: true,
+  tasksLoading: false,
   errorMessage: null,
+  tasksError: null,
 
   start: function () {
     Log.info("[MMM-Exchange] Module started.");
     this.events = [];
+    this.tasks = [];
     this.loading = true;
     this.errorMessage = null;
+    this.tasksError = null;
     this.sendSocketNotification("FETCH_EVENTS", this.config);
+    if (this.config.showTasks) {
+      this.tasksLoading = true;
+      this.sendSocketNotification("FETCH_TASKS", this.config);
+    }
   },
 
   getStyles: function () {
@@ -112,6 +123,88 @@ Module.register("MMM-Exchange", {
     });
 
     wrapper.appendChild(table);
+
+    // Tasks section
+    if (self.config.showTasks) {
+      var taskSection = document.createElement("div");
+      taskSection.className = "task-section";
+
+      var taskHeader = document.createElement("div");
+      taskHeader.className = "task-header dimmed small";
+      taskHeader.textContent = "Tasks";
+      taskSection.appendChild(taskHeader);
+
+      if (self.tasksLoading) {
+        var loadingDiv = document.createElement("div");
+        loadingDiv.className = "dimmed light xsmall";
+        loadingDiv.textContent = "Loading tasks...";
+        taskSection.appendChild(loadingDiv);
+      } else if (self.tasksError) {
+        var errorDiv = document.createElement("div");
+        errorDiv.className = "dimmed light xsmall";
+        errorDiv.textContent = "Tasks error: " + self.tasksError;
+        taskSection.appendChild(errorDiv);
+      } else if (!self.tasks || self.tasks.length === 0) {
+        var emptyDiv = document.createElement("div");
+        emptyDiv.className = "dimmed light xsmall";
+        emptyDiv.textContent = "No tasks.";
+        taskSection.appendChild(emptyDiv);
+      } else {
+        var taskTable = document.createElement("table");
+        taskTable.className = "small";
+
+        self.tasks.forEach(function (task) {
+          var row = document.createElement("tr");
+          row.className = "task-row";
+
+          // Check if overdue
+          var now = new Date();
+          if (task.dueDate && new Date(task.dueDate) < now) {
+            row.className += " task-overdue";
+          }
+
+          // Cell 1: Importance + Subject
+          var subjectCell = document.createElement("td");
+          subjectCell.className = "task-detail";
+
+          var subjectSpan = document.createElement("span");
+          subjectSpan.className = "task-subject";
+          if (task.importance === "High") {
+            subjectSpan.className += " task-importance-high";
+          }
+          subjectSpan.textContent = (task.importance === "High" ? "\u26A1 " : "") + task.subject;
+          subjectCell.appendChild(subjectSpan);
+
+          // Status line
+          var statusSpan = document.createElement("span");
+          statusSpan.className = "task-status dimmed xsmall";
+          statusSpan.textContent = self.formatTaskStatus(task.status);
+          if (task.percentComplete > 0 && task.percentComplete < 100) {
+            statusSpan.textContent += " (" + task.percentComplete + "%)";
+          }
+          subjectCell.appendChild(statusSpan);
+
+          row.appendChild(subjectCell);
+
+          // Cell 2: Due date
+          var dueCell = document.createElement("td");
+          dueCell.className = "task-due light";
+          if (task.dueDate) {
+            dueCell.textContent = self.formatDate(new Date(task.dueDate));
+          } else {
+            dueCell.innerHTML = "&mdash;";
+          }
+          row.appendChild(dueCell);
+
+          taskTable.appendChild(row);
+        });
+
+        taskSection.appendChild(taskTable);
+      }
+
+      wrapper.appendChild(taskSection);
+    }
+
     return wrapper;
   },
 
@@ -125,6 +218,17 @@ Module.register("MMM-Exchange", {
     if (notification === "EVENTS_ERROR") {
       this.loading = false;
       this.errorMessage = payload.message;
+      this.updateDom(this.config.animationSpeed);
+    }
+    if (notification === "TASKS_DATA") {
+      this.tasksLoading = false;
+      this.tasksError = null;
+      this.tasks = payload;
+      this.updateDom(this.config.animationSpeed);
+    }
+    if (notification === "TASKS_ERROR") {
+      this.tasksLoading = false;
+      this.tasksError = payload.message;
       this.updateDom(this.config.animationSpeed);
     }
   },
@@ -144,5 +248,16 @@ Module.register("MMM-Exchange", {
     var hours = date.getHours().toString().padStart(2, "0");
     var minutes = date.getMinutes().toString().padStart(2, "0");
     return hours + ":" + minutes;
+  },
+
+  formatTaskStatus: function (status) {
+    var statusMap = {
+      "NotStarted": "Not started",
+      "InProgress": "In progress",
+      "Completed": "Completed",
+      "WaitingOnOthers": "Waiting",
+      "Deferred": "Deferred"
+    };
+    return statusMap[status] || status;
   }
 });

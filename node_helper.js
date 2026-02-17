@@ -5,6 +5,7 @@ var DOMParser = require("@xmldom/xmldom").DOMParser;
 module.exports = NodeHelper.create({
 
   fetchTimer: null,
+  taskFetchTimer: null,
   config: null,
 
   start: function () {
@@ -24,6 +25,20 @@ module.exports = NodeHelper.create({
 
       this.fetchEvents();
       this.scheduleNextFetch();
+    }
+
+    if (notification === "FETCH_TASKS") {
+      this.config = payload;
+
+      if (!this.config.username || !this.config.password || !this.config.host) {
+        this.sendSocketNotification("TASKS_ERROR", {
+          message: "Missing required config: username, password, or host"
+        });
+        return;
+      }
+
+      this.fetchTasks();
+      this.scheduleNextTaskFetch();
     }
   },
 
@@ -234,6 +249,182 @@ module.exports = NodeHelper.create({
     self.fetchTimer = setTimeout(function () {
       self.fetchEvents();
       self.scheduleNextFetch();
+    }, interval);
+  },
+
+  buildSoapXmlTasks: function () {
+    var maxTasks = this.config.maxTasks || 10;
+
+    return '<?xml version="1.0" encoding="utf-8"?>' +
+      '<soap:Envelope xmlns:soap="http://schemas.xmlsoap.org/soap/envelope/" ' +
+      'xmlns:t="http://schemas.microsoft.com/exchange/services/2006/types" ' +
+      'xmlns:m="http://schemas.microsoft.com/exchange/services/2006/messages">' +
+      '<soap:Body>' +
+      '<m:FindItem Traversal="Shallow">' +
+      '<m:ItemShape>' +
+      '<t:BaseShape>IdOnly</t:BaseShape>' +
+      '<t:AdditionalProperties>' +
+      '<t:FieldURI FieldURI="item:Subject"/>' +
+      '<t:FieldURI FieldURI="item:Importance"/>' +
+      '<t:FieldURI FieldURI="task:Status"/>' +
+      '<t:FieldURI FieldURI="task:DueDate"/>' +
+      '<t:FieldURI FieldURI="task:PercentComplete"/>' +
+      '<t:FieldURI FieldURI="task:IsComplete"/>' +
+      '</t:AdditionalProperties>' +
+      '</m:ItemShape>' +
+      '<m:IndexedPageItemView MaxEntriesReturned="' + maxTasks + '" Offset="0" BasePoint="Beginning"/>' +
+      '<m:Restriction>' +
+      '<t:IsEqualTo>' +
+      '<t:FieldURI FieldURI="task:IsComplete"/>' +
+      '<t:FieldURIOrConstant><t:Constant Value="false"/></t:FieldURIOrConstant>' +
+      '</t:IsEqualTo>' +
+      '</m:Restriction>' +
+      '<m:ParentFolderIds>' +
+      '<t:DistinguishedFolderId Id="tasks"/>' +
+      '</m:ParentFolderIds>' +
+      '</m:FindItem>' +
+      '</soap:Body>' +
+      '</soap:Envelope>';
+  },
+
+  fetchTasks: function () {
+    var self = this;
+    var soapXml = this.buildSoapXmlTasks();
+    var ewsUrl = this.config.host.replace(/\/+$/, "") + "/EWS/Exchange.asmx";
+
+    console.log("[MMM-Exchange] Fetching tasks from " + ewsUrl);
+
+    var username = this.config.username;
+    var domain = this.config.domain || "";
+
+    if (!domain && username.indexOf("@") > -1) {
+      var parts = username.split("@");
+      username = parts[0];
+      domain = parts[1].split(".")[0].toUpperCase();
+    }
+
+    if (!domain && username.indexOf("\\") > -1) {
+      var parts = username.split("\\");
+      domain = parts[0];
+      username = parts[1];
+    }
+
+    var ntlmOptions = {
+      url: ewsUrl,
+      username: username,
+      password: this.config.password,
+      domain: domain,
+      body: soapXml,
+      headers: {
+        "Content-Type": "text/xml; charset=utf-8"
+      }
+    };
+
+    if (self.config.allowInsecureSSL) {
+      process.env.NODE_TLS_REJECT_UNAUTHORIZED = "0";
+    }
+
+    httpntlm.post(ntlmOptions, function (err, res) {
+      if (self.config.allowInsecureSSL) {
+        process.env.NODE_TLS_REJECT_UNAUTHORIZED = "1";
+      }
+
+      if (err) {
+        console.error("[MMM-Exchange] Tasks NTLM request error:", err);
+        self.sendSocketNotification("TASKS_ERROR", {
+          message: String(err)
+        });
+        return;
+      }
+
+      if (res.statusCode !== 200) {
+        console.error("[MMM-Exchange] Tasks HTTP " + res.statusCode);
+        self.sendSocketNotification("TASKS_ERROR", {
+          message: "HTTP " + res.statusCode + " from Exchange server"
+        });
+        return;
+      }
+
+      try {
+        var tasks = self.parseTasksResponse(res.body);
+        console.log("[MMM-Exchange] Fetched " + tasks.length + " tasks.");
+        self.sendSocketNotification("TASKS_DATA", tasks);
+      } catch (parseErr) {
+        console.error("[MMM-Exchange] Tasks parse error:", parseErr.message);
+        self.sendSocketNotification("TASKS_ERROR", {
+          message: "Failed to parse tasks response: " + parseErr.message
+        });
+      }
+    });
+  },
+
+  parseTasksResponse: function (xmlString) {
+    var tasks = [];
+    var doc = new DOMParser().parseFromString(xmlString, "text/xml");
+
+    var faults = doc.getElementsByTagName("Fault");
+    if (faults.length > 0) {
+      var faultString = faults[0].getElementsByTagName("faultstring");
+      throw new Error("SOAP Fault: " + (faultString.length > 0 ? faultString[0].textContent : "Unknown"));
+    }
+
+    var responseMsg = doc.getElementsByTagNameNS(
+      "http://schemas.microsoft.com/exchange/services/2006/messages",
+      "FindItemResponseMessage"
+    );
+    if (responseMsg.length > 0) {
+      var responseClass = responseMsg[0].getAttribute("ResponseClass");
+      if (responseClass !== "Success") {
+        var responseCode = doc.getElementsByTagNameNS(
+          "http://schemas.microsoft.com/exchange/services/2006/messages",
+          "ResponseCode"
+        );
+        throw new Error("EWS error: " + (responseCode.length > 0 ? responseCode[0].textContent : responseClass));
+      }
+    }
+
+    var taskItems = doc.getElementsByTagNameNS(
+      "http://schemas.microsoft.com/exchange/services/2006/types",
+      "Task"
+    );
+
+    if (taskItems.length === 0) {
+      console.log("[MMM-Exchange] No tasks found.");
+      return tasks;
+    }
+
+    for (var i = 0; i < taskItems.length; i++) {
+      var item = taskItems[i];
+      tasks.push({
+        subject: this.getTagText(item, "Subject") || "(No subject)",
+        status: this.getTagText(item, "Status") || "NotStarted",
+        dueDate: this.getTagText(item, "DueDate") || null,
+        percentComplete: parseInt(this.getTagText(item, "PercentComplete") || "0", 10),
+        isComplete: this.getTagText(item, "IsComplete") === "true",
+        importance: this.getTagText(item, "Importance") || "Normal"
+      });
+    }
+
+    // Sort by due date ascending, nulls last
+    tasks.sort(function (a, b) {
+      if (!a.dueDate && !b.dueDate) return 0;
+      if (!a.dueDate) return 1;
+      if (!b.dueDate) return -1;
+      return new Date(a.dueDate) - new Date(b.dueDate);
+    });
+
+    return tasks;
+  },
+
+  scheduleNextTaskFetch: function () {
+    var self = this;
+    if (self.taskFetchTimer) {
+      clearTimeout(self.taskFetchTimer);
+    }
+    var interval = self.config.updateInterval || 5 * 60 * 1000;
+    self.taskFetchTimer = setTimeout(function () {
+      self.fetchTasks();
+      self.scheduleNextTaskFetch();
     }, interval);
   }
 });

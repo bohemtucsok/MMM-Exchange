@@ -58,3 +58,68 @@
 .mmm-exchange .current-event .event-time {
   color: #ddd;
 }
+
+/* Tasks section */
+.mmm-exchange .task-section {
+  margin-top: 15px;
+  padding-top: 10px;
+  border-top: 1px solid rgba(255, 255, 255, 0.2);
+}
+
+.mmm-exchange .task-header {
+  font-size: 0.9em;
+  margin-bottom: 8px;
+  text-transform: uppercase;
+  letter-spacing: 1px;
+}
+
+.mmm-exchange .task-row {
+  border-bottom: 1px solid rgba(255, 255, 255, 0.1);
+}
+
+.mmm-exchange .task-row:last-child {
+  border-bottom: none;
+}
+
+.mmm-exchange .task-detail {
+  padding: 6px 15px 6px 0;
+  vertical-align: top;
+}
+
+.mmm-exchange .task-subject {
+  display: block;
+  font-size: 1em;
+  white-space: nowrap;
+  overflow: hidden;
+  max-width: 300px;
+  mask-image: linear-gradient(to right, #000 80%, transparent 100%);
+  -webkit-mask-image: linear-gradient(to right, #000 80%, transparent 100%);
+}
+
+.mmm-exchange .task-status {
+  display: block;
+  margin-top: 1px;
+  font-size: 0.75em;
+  color: #888;
+}
+
+.mmm-exchange .task-due {
+  padding: 6px 0;
+  white-space: nowrap;
+  vertical-align: top;
+  font-size: 0.85em;
+  color: #aaa;
+  text-align: right;
+}
+
+.mmm-exchange .task-overdue .task-subject {
+  color: #ff6b6b;
+}
+
+.mmm-exchange .task-overdue .task-due {
+  color: #ff6b6b;
+}
+
+.mmm-exchange .task-importance-high {
+  color: #ffd93d;
+}
