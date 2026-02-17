@@ -1,14 +1,16 @@
 # MMM-Exchange
 
-MagicMirror² modul on-premise Microsoft Exchange naptár megjelenítéséhez EWS (Exchange Web Services) SOAP API-n keresztül, NTLM autentikációval.
+MagicMirror² modul on-premise Microsoft Exchange naptár és feladatlista megjelenítéséhez EWS (Exchange Web Services) SOAP API-n keresztül, NTLM autentikációval.
 
 ## Funkciók
 
 - Exchange naptár események lekérése EWS SOAP API-val
+- Exchange feladatlista (Tasks) megjelenítése
 - NTLM autentikáció (Negotiate/NTLM)
 - Automatikus username/domain parsing (`user@domain.com` vagy `DOMAIN\user` formátum)
 - Konfiguálható frissítési intervallum, megjelenített események száma, időtartam
 - Aktuális esemény kiemelése
+- Feladat jelzések: lejárt határidő piros, magas prioritás villám ikonnal
 - Hosszú szövegek fade-out effekttel való levágása
 - Helyszín megjelenítése (opcionális)
 
@@ -33,7 +35,8 @@ A MagicMirror `config/config.js` fájljában add hozzá a modulok listájához:
         username: "felhasznalo@domain.com",
         password: "jelszo",
         host: "https://exchange-szerver-neve",
-        allowInsecureSSL: true
+        allowInsecureSSL: true,
+        showTasks: true
     }
 }
 ```
@@ -53,6 +56,8 @@ A MagicMirror `config/config.js` fájljában add hozzá a modulok listájához:
 | `showLocation` | Boolean | `true` | Helyszín megjelenítése az esemény alatt |
 | `showEnd` | Boolean | `true` | Befejezési időpont megjelenítése |
 | `header` | String | `"Exchange Calendar"` | Modul fejléc szövege |
+| `showTasks` | Boolean | `false` | Feladatlista megjelenítése a naptár alatt |
+| `maxTasks` | Number | `10` | Megjelenített feladatok maximális száma |
 | `animationSpeed` | Number | `1000` | DOM frissítés animáció sebessége (ms) |
 
 ### Username formátumok

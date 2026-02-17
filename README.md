@@ -8,7 +8,7 @@
 # MMM-Exchange
 
 <p align="center">
-  <strong>Display your on-premise Microsoft Exchange calendar on MagicMirror² via EWS SOAP API with NTLM authentication.</strong>
+  <strong>Display your on-premise Microsoft Exchange calendar and tasks on MagicMirror² via EWS SOAP API with NTLM authentication.</strong>
 </p>
 
 <p align="center">
@@ -29,7 +29,7 @@
 
 Most calendar modules rely on CalDAV, Google Calendar, or iCal URLs. If your organization runs an **on-premise Microsoft Exchange server** that only supports **NTLM authentication**, none of those work.
 
-**MMM-Exchange** talks directly to Exchange via EWS SOAP API with full NTLM handshake support. No cloud, no OAuth, no iCal export — just point it at your Exchange server and it shows your upcoming events.
+**MMM-Exchange** talks directly to Exchange via EWS SOAP API with full NTLM handshake support. No cloud, no OAuth, no iCal export — just point it at your Exchange server and it shows your upcoming events and tasks.
 
 ---
 
@@ -37,9 +37,11 @@ Most calendar modules rely on CalDAV, Google Calendar, or iCal URLs. If your org
 
 - **EWS SOAP API** — direct Exchange Web Services integration
 - **NTLM authentication** — full 3-step Negotiate/NTLM handshake
+- **Calendar + Tasks** — shows upcoming events and incomplete tasks in one view
 - **Smart username parsing** — auto-detects `user@domain.com` or `DOMAIN\user` format
 - **Current event highlighting** — ongoing events are visually emphasized
-- **Fade-out effect** — long event titles gracefully fade instead of hard clipping
+- **Task indicators** — overdue tasks in red, high importance marked with lightning icon
+- **Fade-out effect** — long text gracefully fades instead of hard clipping
 - **Configurable** refresh interval, event count, date range, location display
 - **Minimal dependencies** — only 2 packages (xmldom + httpntlm)
 
@@ -68,7 +70,8 @@ Add to your `~/MagicMirror/config/config.js`:
         username: "user@domain.com",
         password: "password",
         host: "https://your-exchange-server",
-        allowInsecureSSL: true
+        allowInsecureSSL: true,
+        showTasks: true
     }
 }
 ```
@@ -96,6 +99,8 @@ pm2 restart magicmirror
 | `showLocation` | `true` | Show event location below the title |
 | `showEnd` | `true` | Show event end time |
 | `header` | `"Exchange Calendar"` | Module header text |
+| `showTasks` | `false` | Show Exchange tasks below the calendar |
+| `maxTasks` | `10` | Maximum number of displayed tasks |
 | `animationSpeed` | `1000` (1s) | DOM update animation speed (ms) |
 
 ---
@@ -120,7 +125,7 @@ If you set the `domain` config option explicitly, it overrides automatic detecti
 | Frontend | MagicMirror² Module API (DOM, table rendering) |
 | Backend | Node.js node_helper (socket notifications) |
 | Auth | NTLM 3-step handshake via httpntlm |
-| API | EWS SOAP XML (FindItem + CalendarView) |
+| API | EWS SOAP XML (FindItem + CalendarView / Tasks) |
 | XML Parsing | @xmldom/xmldom |
 
 ---
@@ -133,6 +138,7 @@ If you set the `domain` config option explicitly, it overrides automatic detecti
 | SOAP Fault / Parse Error | Check the `host` URL — the module appends `/EWS/Exchange.asmx` automatically. |
 | SSL Error | For self-signed certificates, set `allowInsecureSSL: true` |
 | No events showing | Check the date range (`daysToFetch`) and `pm2 logs magicmirror` |
+| Tasks not showing | Set `showTasks: true` in config. Check `pm2 logs magicmirror` for task fetch errors. |
 | Behind a proxy | NTLM handshake may break through reverse proxies. Use direct network access. |
 
 ---
